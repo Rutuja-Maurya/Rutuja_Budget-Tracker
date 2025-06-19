@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Paper, Button, Grid, Card, CardContent, CircularProgress, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import CategoryManager from '../components/CategoryManager';
+import TransactionManager from '../components/TransactionManager';
 import { useNavigate } from 'react-router-dom';
 
 function Dashboard({ onLogout }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const username = localStorage.getItem('username') || '';
   const navigate = useNavigate();
 
@@ -144,7 +147,13 @@ function Dashboard({ onLogout }) {
           <Grid item xs={12} md={4}>
             <Paper sx={{ p: 3, minHeight: 180 }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>Quick Actions</Typography>
-              <Button variant="contained" color="primary" sx={{ mb: 2, width: '100%' }}>
+              <Button
+                variant="contained"
+                color="primary"
+                sx={{ mb: 2, width: '100%' }}
+                startIcon={<AddIcon />}
+                onClick={() => setTransactionDialogOpen(true)}
+              >
                 Add Transaction
               </Button>
               <Button
@@ -178,6 +187,28 @@ function Dashboard({ onLogout }) {
             </IconButton>
           <DialogContent>
             <CategoryManager />
+          </DialogContent>
+        </Dialog>
+
+        {/* Transaction Manager Dialog */}
+        <Dialog open={transactionDialogOpen} onClose={() => setTransactionDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>
+            Manage Transactions
+            <IconButton
+              aria-label="close"
+              onClick={() => setTransactionDialogOpen(false)}
+              sx={{
+                position: 'absolute',
+                right: 8,
+                top: 8,
+                color: (theme) => theme.palette.grey[500],
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent>
+            <TransactionManager />
           </DialogContent>
         </Dialog>
       </Paper>
