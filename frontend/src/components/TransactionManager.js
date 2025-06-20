@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Box, Typography, TextField, Button, MenuItem, Paper, Alert, IconButton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow
+  Box, Typography, TextField, Button, MenuItem, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Alert
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
+import Pagination from '@mui/material/Pagination';
 
 function TransactionManager() {
   const [transactions, setTransactions] = useState([]);
@@ -14,32 +15,73 @@ function TransactionManager() {
   const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [editId, setEditId] = useState(null);
   const [editData, setEditData] = useState({});
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [page, setPage] = useState(1);
+  const [count, setCount] = useState(1);
+  const [dialogOpen, setDialogOpen] = useState(false); // Track dialog open state
 
-  // Fetch categories and transactions
+  // Fetch categories
   const fetchCategories = async () => {
     const token = localStorage.getItem('access');
     const res = await fetch('http://127.0.0.1:8000/api/categories/', {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.ok) setCategories(await res.json());
+    if (res.ok) {
+      const data = await res.json();
+      setCategories(Array.isArray(data.results) ? data.results : []);
+    } else {
+      setCategories([]);
+    }
   };
 
-  const fetchTransactions = async () => {
+  const fetchAllCategories = async () => {
     const token = localStorage.getItem('access');
-    const res = await fetch('http://127.0.0.1:8000/api/transactions/', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) setTransactions(await res.json());
+    let allCategories = [];
+    let page = 1;
+    let hasNext = true;
+
+    while (hasNext) {
+      const res = await fetch(`http://127.0.0.1:8000/api/categories/?page=${page}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        allCategories = allCategories.concat(data.results);
+        if (data.next) {
+          page += 1;
+        } else {
+          hasNext = false;
+        }
+      } else {
+        hasNext = false;
+      }
+    }
+    setCategories(allCategories);
   };
 
   useEffect(() => {
-    fetchCategories();
-    fetchTransactions();
+    fetchAllCategories();
   }, []);
+
+  // Fetch transactions
+  const fetchTransactions = async (pageNum = 1) => {
+    const token = localStorage.getItem('access');
+    const res = await fetch(`http://127.0.0.1:8000/api/transactions/?page=${pageNum}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setTransactions(Array.isArray(data.results) ? data.results : []);
+      setCount(Math.ceil((data.count || 1) / 2)); // 3 per page
+    }
+  };
+
+  useEffect(() => {
+    fetchTransactions(page);
+  }, [page]);
 
   // Add transaction
   const handleAdd = async (e) => {
@@ -77,7 +119,7 @@ function TransactionManager() {
     setEditId(txn.id);
     setEditData({
       amount: txn.amount,
-      category: txn.category,
+      category: txn.category.id,
       date: txn.date,
       description: txn.description,
     });
@@ -98,7 +140,7 @@ function TransactionManager() {
       },
       body: JSON.stringify({
         amount: editData.amount,
-        category_id: editData.category.id ? editData.category.id : editData.category, // always send category_id
+        category_id: editData.category,
         date: editData.date,
         description: editData.description,
       }),
@@ -138,7 +180,7 @@ function TransactionManager() {
 
   return (
     <Box sx={{ mt: 4 }}>
-      <Paper elevation={6} sx={{ p: 4, borderRadius: 4, minWidth: 350, textAlign: 'center' }}>
+      <Paper elevation={6} sx={{ p: 4, borderRadius: 4 }}>
         <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#5e35b1', mb: 2 }}>
           Manage Transactions
         </Typography>
@@ -166,7 +208,7 @@ function TransactionManager() {
           >
             {categories.map(cat => (
               <MenuItem key={cat.id} value={cat.id}>
-                {cat.name} ({cat.type})
+                {cat.name}
               </MenuItem>
             ))}
           </TextField>
@@ -195,7 +237,7 @@ function TransactionManager() {
         <Typography variant="subtitle1" sx={{ mt: 2, mb: 1, color: '#3949ab' }}>
           Your Transactions
         </Typography>
-        <TableContainer component={Paper}>
+        <TableContainer>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -207,82 +249,92 @@ function TransactionManager() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {transactions.map(txn => (
-                <TableRow key={txn.id}>
-                  {editId === txn.id ? (
-                    <>
-                      <TableCell>
-                        <TextField
-                          value={editData.amount}
-                          onChange={e => setEditData({ ...editData, amount: e.target.value })}
-                          type="number"
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          select
-                          value={editData.category}
-                          onChange={e => setEditData({ ...editData, category: e.target.value })}
-                          size="small"
-                        >
-                          {categories.map(cat => (
-                            <MenuItem key={cat.id} value={cat.id}>
-                              {cat.name} ({cat.type})
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          value={editData.date}
-                          onChange={e => setEditData({ ...editData, date: e.target.value })}
-                          type="date"
-                          size="small"
-                          InputLabelProps={{ shrink: true }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          value={editData.description}
-                          onChange={e => setEditData({ ...editData, description: e.target.value })}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton onClick={() => handleEditSave(txn.id)} color="primary">
-                          <SaveIcon />
-                        </IconButton>
-                        <IconButton onClick={handleEditCancel} color="secondary">
-                          <CancelIcon />
-                        </IconButton>
-                      </TableCell>
-                    </>
-                  ) : (
-                    <>
-                      <TableCell>{txn.amount}</TableCell>
-                      <TableCell>
-                        {txn.category?.name || ''}
-                        {' '}
-                        ({txn.category?.type || ''})
-                      </TableCell>
-                      <TableCell>{txn.date}</TableCell>
-                      <TableCell>{txn.description}</TableCell>
-                      <TableCell align="right">
-                        <IconButton onClick={() => handleEdit(txn)} color="primary">
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton onClick={() => handleDelete(txn.id)} color="error">
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
-                    </>
-                  )}
+              {transactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} align="center">No transactions found.</TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                transactions.map(txn => (
+                  <TableRow key={txn.id}>
+                    {editId === txn.id ? (
+                      <>
+                        <TableCell>
+                          <TextField
+                            value={editData.amount}
+                            onChange={e => setEditData({ ...editData, amount: e.target.value })}
+                            type="number"
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            select
+                            value={editData.category}
+                            onChange={e => setEditData({ ...editData, category: e.target.value })}
+                            size="small"
+                          >
+                            {categories.map(cat => (
+                              <MenuItem key={cat.id} value={cat.id}>
+                                {cat.name}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            value={editData.date}
+                            onChange={e => setEditData({ ...editData, date: e.target.value })}
+                            type="date"
+                            size="small"
+                            InputLabelProps={{ shrink: true }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            value={editData.description}
+                            onChange={e => setEditData({ ...editData, description: e.target.value })}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton onClick={() => handleEditSave(txn.id)} color="primary">
+                            <SaveIcon />
+                          </IconButton>
+                          <IconButton onClick={handleEditCancel} color="secondary">
+                            <CancelIcon />
+                          </IconButton>
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell>{txn.amount}</TableCell>
+                        <TableCell>{txn.category?.name || ''}</TableCell>
+                        <TableCell>{txn.date}</TableCell>
+                        <TableCell>{txn.description}</TableCell>
+                        <TableCell align="right">
+                          <IconButton onClick={() => handleEdit(txn)} color="primary">
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton onClick={() => handleDelete(txn.id)} color="error">
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <Pagination
+            count={count}
+            page={page}
+            onChange={(_, value) => setPage(value)}
+            color="primary"
+          />
+        </Box>
       </Paper>
     </Box>
   );
