@@ -5,32 +5,46 @@ import CloseIcon from '@mui/icons-material/Close';
 import CategoryManager from '../components/CategoryManager';
 import TransactionManager from '../components/TransactionManager';
 import BudgetManager from '../components/BudgetManager';
+import ExpensesPieChart from '../components/ExpensesPieChart';
+import IncomeVsExpensesChart from '../components/IncomeVsExpensesChart';
 import { useNavigate } from 'react-router-dom';
 
 function Dashboard({ onLogout }) {
-  const [summary, setSummary] = useState(null);
+  const [summary, setSummary] = useState({ income: 0, expenses: 0 });
   const [loading, setLoading] = useState(true);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [budgetDialogOpen, setBudgetDialogOpen] = useState(false);
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7) + '-01'); // default to current month
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [pieData, setPieData] = useState([]);
   const username = localStorage.getItem('username') || '';
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchSummary = async () => {
-      setLoading(true);
-      const token = localStorage.getItem('access');
-      const res = await fetch('http://127.0.0.1:8000/api/summary/', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setSummary(await res.json());
-      }
-      setLoading(false);
-    };
-    fetchSummary();
-  }, []);
+    setLoading(true);
+    const token = localStorage.getItem('access');
+    fetch(`http://127.0.0.1:8000/api/summary/?month=${selectedMonth}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        setSummary(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [selectedMonth]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('access');
+    fetch(`http://127.0.0.1:8000/api/expenses-by-category/?month=${selectedMonth}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(setPieData);
+  }, [selectedMonth]);
 
   const handleLogout = () => {
     localStorage.removeItem('access');
@@ -61,20 +75,18 @@ function Dashboard({ onLogout }) {
         </Typography>
 
         {/* Month Selector */}
-        {/* <TextField
+        <TextField
           label="Month"
           type="month"
-          value={month.slice(0, 7)} // show only YYYY-MM in the input
-          onChange={e => setMonth(e.target.value + '-01')} // always set as YYYY-MM-01
-          fullWidth
-          required
-          sx={{ mb: 2 }}
+          value={selectedMonth}
+          onChange={e => setSelectedMonth(e.target.value)}
+          sx={{ mb: 2, minWidth: 200 }}
           InputLabelProps={{ shrink: true }}
-        /> */}
+        />
 
         {/* Summary Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={2.4}>
+          {/* <Grid item xs={12} sm={6} md={2.4}>
             <Card sx={{ bgcolor: '#e1bee7' }}>
               <CardContent>
                 <Typography variant="subtitle1">Total Income</Typography>
@@ -83,7 +95,7 @@ function Dashboard({ onLogout }) {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid>
+          </Grid> */}
           <Grid item xs={12} sm={6} md={2.4}>
             <Card sx={{ bgcolor: '#ffcdd2' }}>
               <CardContent>
@@ -94,7 +106,7 @@ function Dashboard({ onLogout }) {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} sm={6} md={2.4}>
+          {/* <Grid item xs={12} sm={6} md={2.4}>
             <Card sx={{ bgcolor: '#b2dfdb' }}>
               <CardContent>
                 <Typography variant="subtitle1">Balance</Typography>
@@ -103,7 +115,7 @@ function Dashboard({ onLogout }) {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid>
+          </Grid> */}
           <Grid item xs={12} sm={6} md={2.4}>
             <Card sx={{ bgcolor: '#ffe082' }}>
               <CardContent>
@@ -134,17 +146,13 @@ function Dashboard({ onLogout }) {
           <Grid item xs={12} md={6}>
             <Paper sx={{ p: 3, minHeight: 300, textAlign: 'center' }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>Expenses by Category (Pie/Donut Chart)</Typography>
-              <Box sx={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa' }}>
-                [D3.js Pie/Donut Chart Placeholder]
-              </Box>
+              <ExpensesPieChart data={pieData} />
             </Paper>
           </Grid>
           <Grid item xs={12} md={6}>
             <Paper sx={{ p: 3, minHeight: 300, textAlign: 'center' }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>Income vs Expenses (Bar/Line Chart)</Typography>
-              <Box sx={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa' }}>
-                [D3.js Bar/Line Chart Placeholder]
-              </Box>
+              <IncomeVsExpensesChart income={summary?.income || 0} expenses={summary?.expenses || 0} />
             </Paper>
           </Grid>
         </Grid>
