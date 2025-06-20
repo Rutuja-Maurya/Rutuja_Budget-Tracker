@@ -6,39 +6,44 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
+import Pagination from '@mui/material/Pagination';
 
-// Category types for dropdown
 const CATEGORY_TYPES = [
   { value: 'income', label: 'Income' },
   { value: 'expense', label: 'Expense' },
 ];
 
 function CategoryManager() {
-  // State variables
-  const [categories, setCategories] = useState([]); // List of categories
-  const [name, setName] = useState(''); // New category name
-  const [type, setType] = useState('income'); // New category type
-  const [error, setError] = useState(''); // Error message
-  const [success, setSuccess] = useState(''); // Success message
-  const [editId, setEditId] = useState(null); // ID of category being edited
-  const [editName, setEditName] = useState(''); // Edited category name
-  const [editType, setEditType] = useState('income'); // Edited category type
+  const [categories, setCategories] = useState([]);
+  const [name, setName] = useState('');
+  const [type, setType] = useState('income');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [editId, setEditId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editType, setEditType] = useState('income');
+  const [page, setPage] = useState(1);
+  const [count, setCount] = useState(1);
 
   // Fetch categories from API
-  const fetchCategories = async () => {
+  const fetchCategories = async (pageNum = 1) => {
     const token = localStorage.getItem('access');
-    const res = await fetch('http://127.0.0.1:8000/api/categories/', {
+    const res = await fetch(`http://127.0.0.1:8000/api/categories/?page=${pageNum}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
-      setCategories(await res.json());
+      const data = await res.json();
+      setCategories(Array.isArray(data.results) ? data.results : []);
+      setCount(Math.ceil((data.count || 1) / 2)); // 3 per page
+    } else {
+      setCategories([]);
+      setCount(1);
     }
   };
 
-  // Fetch categories on component mount
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    fetchCategories(page);
+  }, [page]);
 
   // Handle adding a new category
   const handleAdd = async (e) => {
@@ -58,7 +63,7 @@ function CategoryManager() {
       setName('');
       setType('income');
       setSuccess('Category added!');
-      fetchCategories();
+      fetchCategories(); // This must be called here
     } else {
       setError('Could not add category');
     }
@@ -169,7 +174,7 @@ function CategoryManager() {
         </Typography>
         {/* List of categories with edit/delete options */}
         <List>
-          {categories.map(cat => (
+          {Array.isArray(categories) && categories.map(cat => (
             <ListItem key={cat.id} sx={{ justifyContent: 'space-between' }}>
               {editId === cat.id ? (
                 // Edit mode
@@ -216,6 +221,15 @@ function CategoryManager() {
             </ListItem>
           ))}
         </List>
+        {/* Pagination controls */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <Pagination
+            count={count}
+            page={page}
+            onChange={(_, value) => setPage(value)}
+            color="primary"
+          />
+        </Box>
       </Paper>
     </Box>
   );

@@ -26,11 +26,16 @@ class Transaction(models.Model):
 
 class Budget(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    month = models.DateField()  # Store as first day of month (e.g., 2024-06-01)
+    year = models.IntegerField()
+    month = models.IntegerField()  # 1-12
     amount = models.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
-        unique_together = ('user', 'month')
+        unique_together = ('user', 'year', 'month')
 
     def __str__(self):
-        return f"{self.user.username} - {self.month.strftime('%B %Y')}: {self.amount}"
+        return f"{self.user.username} - {self.get_month_display()} {self.year}: {self.amount}"
+
+    def get_month_display(self):
+        import calendar
+        return calendar.month_name[self.month]

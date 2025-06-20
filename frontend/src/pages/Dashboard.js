@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Paper, Button, Grid, Card, CardContent, CircularProgress, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
+import { Box, Typography, Paper, Button, Grid, Card, CardContent, CircularProgress, Dialog, DialogTitle, DialogContent, IconButton, TextField } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import CategoryManager from '../components/CategoryManager';
 import TransactionManager from '../components/TransactionManager';
+import BudgetManager from '../components/BudgetManager';
 import { useNavigate } from 'react-router-dom';
 
 function Dashboard({ onLogout }) {
@@ -11,6 +12,8 @@ function Dashboard({ onLogout }) {
   const [loading, setLoading] = useState(true);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
+  const [budgetDialogOpen, setBudgetDialogOpen] = useState(false);
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7) + '-01'); // default to current month
   const username = localStorage.getItem('username') || '';
   const navigate = useNavigate();
 
@@ -56,6 +59,18 @@ function Dashboard({ onLogout }) {
         <Typography variant="h6" sx={{ color: '#3949ab', mb: 4, textAlign: 'center' }}>
           Hi {username.charAt(0).toUpperCase() + username.slice(1)}, your financial summary at a glance
         </Typography>
+
+        {/* Month Selector */}
+        {/* <TextField
+          label="Month"
+          type="month"
+          value={month.slice(0, 7)} // show only YYYY-MM in the input
+          onChange={e => setMonth(e.target.value + '-01')} // always set as YYYY-MM-01
+          fullWidth
+          required
+          sx={{ mb: 2 }}
+          InputLabelProps={{ shrink: true }}
+        /> */}
 
         {/* Summary Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -164,7 +179,12 @@ function Dashboard({ onLogout }) {
               >
                 Manage Categories
               </Button>
-              <Button variant="outlined" color="secondary" sx={{ width: '100%' }}>
+              <Button
+                variant="outlined"
+                color="secondary"
+                sx={{ width: '100%' }}
+                onClick={() => setBudgetDialogOpen(true)}
+              >
                 Set/View Budget
               </Button>
             </Paper>
@@ -209,6 +229,28 @@ function Dashboard({ onLogout }) {
           </DialogTitle>
           <DialogContent>
             <TransactionManager />
+          </DialogContent>
+        </Dialog>
+
+        {/* Budget Manager Dialog */}
+        <Dialog open={budgetDialogOpen} onClose={() => setBudgetDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>
+            Manage Monthly Budget
+            <IconButton
+              aria-label="close"
+              onClick={() => setBudgetDialogOpen(false)}
+              sx={{
+                position: 'absolute',
+                right: 8,
+                top: 8,
+                color: (theme) => theme.palette.grey[500],
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent>
+            <BudgetManager />
           </DialogContent>
         </Dialog>
       </Paper>

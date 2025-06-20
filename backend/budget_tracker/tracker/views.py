@@ -1,12 +1,13 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from datetime import date
 from .models import Category, Transaction, Budget
-from .serializers import CategorySerializer, TransactionSerializer
+from .serializers import CategorySerializer, TransactionSerializer, BudgetSerializer
 from .models import Category, Transaction, Budget
+from django_filters.rest_framework import DjangoFilterBackend
 
 # Category API
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -23,9 +24,29 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+    filterset_fields = ['category', 'date', 'amount']  # add more as needed
+    ordering_fields = ['date', 'amount']
 
     def get_queryset(self):
-        return Transaction.objects.filter(user=self.request.user).order_by('-date', '-created_at')
+        return Transaction.objects.filter(user=self.request.user)
+# class TransactionViewSet(viewsets.ModelViewSet):
+#     serializer_class = TransactionSerializer
+#     permission_classes = [permissions.IsAuthenticated]
+
+#     def get_queryset(self):
+#         return Transaction.objects.filter(user=self.request.user).order_by('-date', '-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+        
+# Budget API
+class BudgetViewSet(viewsets.ModelViewSet):
+    serializer_class = BudgetSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Budget.objects.filter(user=self.request.user).order_by('-month')
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
