@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import BudgetViewSet, CategoryViewSet, TransactionViewSet, SummaryAPIView, ExpensesByCategoryAPIView
+from .views import BudgetViewSet, CategoryViewSet, TransactionViewSet, SummaryAPIView, ExpensesByCategoryAPIView, RecentTransactionsAPIView, BalanceTrendAPIView
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'transactions', TransactionViewSet, basename='transaction')
@@ -10,4 +10,6 @@ urlpatterns = [
     path('', include(router.urls)),
     path('summary/', SummaryAPIView.as_view(), name='summary'),
     path('expenses-by-category/', ExpensesByCategoryAPIView.as_view()),
+    path('recent-transactions/', RecentTransactionsAPIView.as_view(), name='recent-transactions'),
+    path('balance-trend/', BalanceTrendAPIView.as_view(), name='balance-trend'),
 ]

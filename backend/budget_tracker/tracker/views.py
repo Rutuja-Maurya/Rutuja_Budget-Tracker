@@ -9,6 +9,7 @@ from .models import Category, Transaction, Budget
 from .serializers import CategorySerializer, TransactionSerializer, BudgetSerializer
 from .models import Category, Transaction, Budget
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.generics import ListAPIView
 
 # Category API
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -113,6 +114,7 @@ class SummaryAPIView(APIView):
         budget_remaining = budget - expenses
 
         return Response({
+            'income': income,
             'expenses': expenses,
             'balance': balance,
             'budget': budget,
@@ -147,3 +149,69 @@ class ExpensesByCategoryAPIView(APIView):
             .annotate(total=Sum('amount'))
         )
         return Response(list(data))    
+    
+class RecentTransactionsAPIView(ListAPIView):
+    serializer_class = TransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        month_str = self.request.GET.get('month')
+        if month_str:
+            year, month = map(int, month_str.split('-'))
+            month_start = datetime(year, month, 1).date()
+            if month == 12:
+                next_month_start = datetime(year + 1, 1, 1).date()
+            else:
+                next_month_start = datetime(year, month + 1, 1).date()
+        else:
+            today = date.today()
+            month_start = today.replace(day=1)
+            if today.month == 12:
+                next_month_start = today.replace(year=today.year + 1, month=1, day=1)
+            else:
+                next_month_start = today.replace(month=today.month + 1, day=1)
+
+        return Transaction.objects.filter(
+            user=user,
+            date__gte=month_start,
+            date__lt=next_month_start
+        ).order_by('-date', '-id')[:5]  # latest 5 transactions
+    
+class BalanceTrendAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        month_str = request.GET.get('month')
+        if month_str:
+            year, month = map(int, month_str.split('-'))
+            month_start = datetime(year, month, 1).date()
+            if month == 12:
+                next_month_start = datetime(year + 1, 1, 1).date()
+            else:
+                next_month_start = datetime(year, month + 1, 1).date()
+        else:
+            today = datetime.today().date()
+            month_start = today.replace(day=1)
+            if today.month == 12:
+                next_month_start = today.replace(year=today.year + 1, month=1, day=1)
+            else:
+                next_month_start = today.replace(month=today.month + 1, day=1)
+
+        days = (next_month_start - month_start).days
+        balances = []
+        cumulative_balance = 0
+
+        for i in range(days):
+            day = month_start + timedelta(days=i)
+            income = Transaction.objects.filter(
+                user=user, date=day, category__type='income'
+            ).aggregate(total=Sum('amount'))['total'] or 0
+            expense = Transaction.objects.filter(
+                user=user, date=day, category__type='expense'
+            ).aggregate(total=Sum('amount'))['total'] or 0
+            cumulative_balance += income - expense
+            balances.append({'date': day, 'balance': cumulative_balance})
+
+        return Response(balances)

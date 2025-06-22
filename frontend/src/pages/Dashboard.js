@@ -7,6 +7,7 @@ import TransactionManager from '../components/TransactionManager';
 import BudgetManager from '../components/BudgetManager';
 import ExpensesPieChart from '../components/ExpensesPieChart';
 import IncomeVsExpensesChart from '../components/IncomeVsExpensesChart';
+import BalanceTrendChart from '../components/BalanceTrendChart';
 import { useNavigate } from 'react-router-dom';
 
 function Dashboard({ onLogout }) {
@@ -20,6 +21,8 @@ function Dashboard({ onLogout }) {
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   });
   const [pieData, setPieData] = useState([]);
+  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [balanceTrend, setBalanceTrend] = useState([]);
   const username = localStorage.getItem('username') || '';
   const navigate = useNavigate();
 
@@ -44,6 +47,26 @@ function Dashboard({ onLogout }) {
     })
       .then(res => res.json())
       .then(setPieData);
+  }, [selectedMonth]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('access');
+    fetch(`http://127.0.0.1:8000/api/recent-transactions/?month=${selectedMonth}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        setRecentTransactions(Array.isArray(data) ? data : (data.results || []));
+      });
+  }, [selectedMonth]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('access');
+    fetch(`http://127.0.0.1:8000/api/balance-trend/?month=${selectedMonth}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(setBalanceTrend);
   }, [selectedMonth]);
 
   const handleLogout = () => {
@@ -86,7 +109,7 @@ function Dashboard({ onLogout }) {
 
         {/* Summary Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          {/* <Grid item xs={12} sm={6} md={2.4}>
+          <Grid item xs={12} sm={6} md={2.4}>
             <Card sx={{ bgcolor: '#e1bee7' }}>
               <CardContent>
                 <Typography variant="subtitle1">Total Income</Typography>
@@ -95,7 +118,7 @@ function Dashboard({ onLogout }) {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid> */}
+          </Grid>
           <Grid item xs={12} sm={6} md={2.4}>
             <Card sx={{ bgcolor: '#ffcdd2' }}>
               <CardContent>
@@ -143,16 +166,22 @@ function Dashboard({ onLogout }) {
 
         {/* Charts Section */}
         <Grid container spacing={3} sx={{ mb: 4, mt: 2 }}>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={4}>
             <Paper sx={{ p: 3, minHeight: 300, textAlign: 'center' }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>Expenses by Category (Pie/Donut Chart)</Typography>
               <ExpensesPieChart data={pieData} />
             </Paper>
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={4}>
             <Paper sx={{ p: 3, minHeight: 300, textAlign: 'center' }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>Income vs Expenses (Bar/Line Chart)</Typography>
               <IncomeVsExpensesChart income={summary?.income || 0} expenses={summary?.expenses || 0} />
+            </Paper>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ p: 3, minHeight: 300, textAlign: 'center' }}>
+              <Typography variant="subtitle1" sx={{ mb: 2 }}>Balance Trend (Line/Area Chart)</Typography>
+              <BalanceTrendChart data={balanceTrend} />
             </Paper>
           </Grid>
         </Grid>
@@ -162,9 +191,18 @@ function Dashboard({ onLogout }) {
           <Grid item xs={12} md={8}>
             <Paper sx={{ p: 3, minHeight: 180 }}>
               <Typography variant="subtitle1" sx={{ mb: 2 }}>Recent Transactions</Typography>
-              <Box sx={{ color: '#aaa' }}>
-                [Recent transactions list placeholder]
-              </Box>
+              {recentTransactions.length === 0 ? (
+                <Box sx={{ color: '#aaa' }}>[No transactions found]</Box>
+              ) : (
+                <ul style={{ paddingLeft: 0, listStyle: 'none' }}>
+                  {recentTransactions.map(txn => (
+                    <li key={txn.id} style={{ marginBottom: 8 }}>
+                      <strong>{txn.category?.name || ''}</strong> — {txn.amount} on {txn.date} <br />
+                      <span style={{ color: '#888' }}>{txn.description}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Paper>
           </Grid>
           <Grid item xs={12} md={4}>
